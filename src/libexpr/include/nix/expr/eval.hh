@@ -52,6 +52,7 @@ struct SingleDerivedPath;
 enum RepairFlag : bool;
 struct MemorySourceAccessor;
 struct MountedSourceAccessor;
+class SourceReadRecorder;
 
 namespace eval_cache {
 class EvalCache;
@@ -417,6 +418,8 @@ public:
      * The accessor corresponding to `store`.
      */
     const ref<MountedSourceAccessor> storeFS;
+
+    const std::shared_ptr<SourceReadRecorder> sourceReadRecorder;
 
     /**
      * The accessor for the root filesystem.

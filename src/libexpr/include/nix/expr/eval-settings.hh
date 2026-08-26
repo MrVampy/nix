@@ -101,6 +101,8 @@ public:
 
     std::vector<PrimOp> extraPrimOps;
 
+    bool traceSourceReads = false;
+
     Setting<bool> enableNativeCode{this, false, "allow-unsafe-native-code-during-evaluation", R"(
         Enable built-in functions that allow executing native code.
 

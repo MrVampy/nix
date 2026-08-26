@@ -89,6 +89,7 @@ suites = [
       'dump-db.sh',
       'eval-store.sh',
       'eval.sh',
+      'eval-read-set.sh',
       'experimental-features.sh',
       'export-graph.sh',
       'export.sh',

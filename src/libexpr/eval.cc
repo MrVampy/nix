@@ -21,6 +21,7 @@
 #include "nix/fetchers/filtering-source-accessor.hh"
 #include "nix/util/memory-source-accessor.hh"
 #include "nix/util/mounted-source-accessor.hh"
+#include "nix/util/recording-source-accessor.hh"
 #include "nix/expr/gc-small-vector.hh"
 #include "nix/util/url.hh"
 #include "nix/fetchers/fetch-to-store.hh"
@@ -273,6 +274,7 @@ EvalState::EvalState(
            */
           {CanonPath(store->storeDir), store->getFSAccessor(settings.pureEval)},
       }))
+    , sourceReadRecorder(settings.traceSourceReads ? std::make_shared<SourceReadRecorder>() : nullptr)
     , rootFS([&] {
         /* In pure eval mode, we provide a filesystem that only
            contains the Nix store.
@@ -287,6 +289,9 @@ EvalState::EvalState(
                                           : makeUnionSourceAccessor({getFSSourceAccessor(), storeFS});
         /* Cache positive lstat/readlink results to speed up resolveSymlinks. */
         accessor = makeCachingSourceAccessor(accessor);
+
+        if (sourceReadRecorder)
+            accessor = makeRecordingSourceAccessor(accessor, sourceReadRecorder);
 
         /* Apply access control if needed. */
         if (settings.restrictEval || settings.pureEval)

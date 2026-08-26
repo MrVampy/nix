@@ -1022,7 +1022,7 @@ Flake::~Flake() {}
 
 ref<eval_cache::EvalCache> openEvalCache(EvalState & state, ref<const LockedFlake> lockedFlake)
 {
-    auto fingerprint = state.settings.useEvalCache && state.settings.pureEval
+    auto fingerprint = state.settings.useEvalCache && !state.settings.traceSourceReads && state.settings.pureEval
                            ? lockedFlake->getFingerprint(*state.store, state.fetchSettings)
                            : std::nullopt;
     auto rootLoader = [&state, lockedFlake]() {
