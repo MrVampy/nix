@@ -115,6 +115,7 @@ suites = [
       'impure-eval.sh',
       'pure-eval.sh',
       'eval.sh',
+      'eval-read-set.sh',
       'short-path-literals.sh',
       'absolute-path-literals.sh',
       'no-url-literals.sh',

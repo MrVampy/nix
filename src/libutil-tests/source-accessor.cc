@@ -1,12 +1,66 @@
 #include "nix/util/fs-sink.hh"
 #include "nix/util/file-system.hh"
+#include "nix/util/memory-source-accessor.hh"
 #include "nix/util/processes.hh"
+#include "nix/util/recording-source-accessor.hh"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <rapidcheck/gtest.h>
 
 namespace nix {
+
+TEST(RecordingSourceAccessor, recordsCanonicalDeduplicatedOperations)
+{
+    auto source = make_ref<MemorySourceAccessor>();
+    MemorySink sink(*source);
+    sink.createDirectory(CanonPath::root);
+    sink.createRegularFile(CanonPath("file"), [](CreateRegularFileSink & file) { file("contents"); });
+    sink.createDirectory(CanonPath("directory"));
+    sink.createSymlink(CanonPath("link"), "target");
+    source->fingerprint = "test:revision";
+
+    auto recorder = std::make_shared<SourceReadRecorder>();
+    auto accessor = makeRecordingSourceAccessor(source, recorder);
+    EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
+    EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
+    EXPECT_TRUE(accessor->readDirectory(CanonPath("directory")).empty());
+    EXPECT_EQ(accessor->readLink(CanonPath("link")), "target");
+    EXPECT_FALSE(accessor->pathExists(CanonPath("missing")));
+
+    EXPECT_EQ(
+        recorder->get(),
+        (std::vector<SourceRead>{
+            {
+                .type = SourceReadType::Stat,
+                .outcome = SourceReadOutcome::Absent,
+                .logicalPath = CanonPath("missing"),
+                .sourcePath = CanonPath("missing"),
+                .fingerprint = "test:revision",
+            },
+            {
+                .type = SourceReadType::File,
+                .outcome = SourceReadOutcome::Present,
+                .logicalPath = CanonPath("file"),
+                .sourcePath = CanonPath("file"),
+                .fingerprint = "test:revision",
+            },
+            {
+                .type = SourceReadType::Directory,
+                .outcome = SourceReadOutcome::Present,
+                .logicalPath = CanonPath("directory"),
+                .sourcePath = CanonPath("directory"),
+                .fingerprint = "test:revision",
+            },
+            {
+                .type = SourceReadType::Symlink,
+                .outcome = SourceReadOutcome::Present,
+                .logicalPath = CanonPath("link"),
+                .sourcePath = CanonPath("link"),
+                .fingerprint = "test:revision",
+            },
+        }));
+}
 
 MATCHER_P2(HasContents, path, expected, "")
 {

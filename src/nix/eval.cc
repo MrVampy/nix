@@ -1,20 +1,52 @@
 #include "nix/cmd/command-installable-value.hh"
+#include "nix/cmd/installable-flake.hh"
 #include "nix/main/common-args.hh"
 #include "nix/main/shared.hh"
 #include "nix/store/store-api.hh"
 #include "nix/expr/eval.hh"
 #include "nix/expr/eval-inline.hh"
 #include "nix/expr/value-to-json.hh"
+#include "nix/util/file-system.hh"
+#include "nix/util/recording-source-accessor.hh"
 
 #include <nlohmann/json.hpp>
 
 using namespace nix;
+
+static std::string_view sourceReadTypeName(SourceReadType type)
+{
+    switch (type) {
+    case SourceReadType::Stat:
+        return "stat";
+    case SourceReadType::File:
+        return "file";
+    case SourceReadType::Directory:
+        return "directory";
+    case SourceReadType::Symlink:
+        return "symlink";
+    }
+    unreachable();
+}
+
+static std::string_view sourceReadOutcomeName(SourceReadOutcome outcome)
+{
+    switch (outcome) {
+    case SourceReadOutcome::Present:
+        return "present";
+    case SourceReadOutcome::Absent:
+        return "absent";
+    case SourceReadOutcome::Failed:
+        return "failed";
+    }
+    unreachable();
+}
 
 struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
 {
     bool raw = false;
     std::optional<std::string> apply;
     std::optional<std::filesystem::path> writeTo;
+    std::optional<std::filesystem::path> writeReadSet;
 
     CmdEval()
         : InstallableValueCommand()
@@ -37,6 +69,16 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
             .description = "Write a string or attrset of strings to *path*.",
             .labels = {"path"},
             .handler = {&writeTo},
+        });
+
+        addFlag({
+            .longName = "write-read-set",
+            .description = "Write the source paths read while forcing the result to *path*.",
+            .labels = {"path"},
+            .handler = {[&](std::string path) {
+                writeReadSet = path;
+                evalSettings.traceSourceReads = true;
+            }},
         });
     }
 
@@ -61,6 +103,9 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
     {
         if (raw && json)
             throw UsageError("--raw and --json are mutually exclusive");
+
+        if (writeReadSet && pathExists(*writeReadSet))
+            throw Error("path '%s' already exists", writeReadSet->string());
 
         auto state = getEvalState();
 
@@ -121,6 +166,30 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
 
         else {
             logger->cout("%s", ValuePrinter(*state, *v, PrintOptions{.force = true, .derivationPaths = true}));
+        }
+
+        if (writeReadSet) {
+            assert(state->sourceReadRecorder);
+            auto lockedFlake = nlohmann::json(nullptr);
+            if (auto flake = dynamic_cast<InstallableFlake *>(&*installable))
+                lockedFlake = flake->getLockedFlake()->flake.lockedRef.to_string();
+            auto entries = nlohmann::json::array();
+            for (auto & read : state->sourceReadRecorder->get()) {
+                entries.push_back({
+                    {"access", sourceReadTypeName(read.type)},
+                    {"outcome", sourceReadOutcomeName(read.outcome)},
+                    {"logical_path", read.logicalPath.abs()},
+                    {"source_path", read.sourcePath.abs()},
+                    {"fingerprint", read.fingerprint ? nlohmann::json(*read.fingerprint) : nlohmann::json(nullptr)},
+                });
+            }
+            auto document = nlohmann::json{
+                {"schema_id", "nix-eval-read-set"},
+                {"installable", installable->what()},
+                {"locked_flake", std::move(lockedFlake)},
+                {"entries", std::move(entries)},
+            };
+            writeFile(*writeReadSet, document.dump() + "\n");
         }
     }
 };

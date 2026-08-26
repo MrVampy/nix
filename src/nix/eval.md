@@ -39,6 +39,19 @@ R""(
   # nix eval nix#checks.x86_64-linux --apply builtins.attrNames
   ```
 
+* Record the source paths read while forcing one output:
+
+  ```console
+  # nix eval --json .#checks.x86_64-linux.package --write-read-set ./read-set.json
+  ```
+
+  The versionless `nix-eval-read-set` document records each source
+  locked flake, source fingerprint, path relative to that source, logical
+  path, access kind, and outcome. An entry without a fingerprint identifies
+  an impure source that a consumer must handle explicitly. Read-set recording
+  disables the flake evaluation cache so cached values cannot omit their
+  original reads.
+
 * Generate a directory with the specified contents:
 
   ```console

@@ -70,6 +70,7 @@ headers = [ config_pub_h ] + files(
   'position.hh',
   'posix-source-accessor.hh',
   'processes.hh',
+  'recording-source-accessor.hh',
   'ref.hh',
   'regex-combinators.hh',
   'repair-flag.hh',

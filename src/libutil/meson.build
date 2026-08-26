@@ -164,6 +164,7 @@ sources = [ config_priv_h ] + files(
   'position.cc',
   'posix-source-accessor.cc',
   'processes.cc',
+  'recording-source-accessor.cc',
   'serialise.cc',
   'signature/local-keys.cc',
   'signature/signer.cc',
