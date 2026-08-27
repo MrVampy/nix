@@ -33,7 +33,7 @@ jq -e '
 [[ $(nix eval --json "$flake#selected" --write-read-set "$second") == 42 ]]
 cmp "$first" "$second"
 
-fingerprint=$(jq -r '.entries[] | select(.source_path == "/used.nix") | .fingerprint' "$first")
+fingerprint=$(jq -r 'first(.entries[] | select(.source_path == "/used.nix") | .fingerprint)' "$first")
 [[ $(nix eval --json "$flake#selected" --write-read-set "$filtered" \
   --read-set-fingerprint "$fingerprint") == 43 ]]
 jq -e --arg fingerprint "$fingerprint" '
