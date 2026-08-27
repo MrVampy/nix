@@ -10,6 +10,7 @@
 #include "nix/util/recording-source-accessor.hh"
 
 #include <nlohmann/json.hpp>
+#include <set>
 
 using namespace nix;
 
@@ -47,6 +48,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
     std::optional<std::string> apply;
     std::optional<std::filesystem::path> writeTo;
     std::optional<std::filesystem::path> writeReadSet;
+    std::set<std::string> readSetFingerprints;
 
     CmdEval()
         : InstallableValueCommand()
@@ -80,6 +82,13 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
                 evalSettings.traceSourceReads = true;
             }},
         });
+
+        addFlag({
+            .longName = "read-set-fingerprint",
+            .description = "Retain reads for source *fingerprint* and every unfingerprinted read.",
+            .labels = {"fingerprint"},
+            .handler = {[&](std::string fingerprint) { readSetFingerprints.insert(std::move(fingerprint)); }},
+        });
     }
 
     std::string description() override
@@ -106,6 +115,9 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
 
         if (writeReadSet && pathExists(*writeReadSet))
             throw Error("path '%s' already exists", writeReadSet->string());
+
+        if (!readSetFingerprints.empty() && !writeReadSet)
+            throw UsageError("--read-set-fingerprint requires --write-read-set");
 
         auto state = getEvalState();
 
@@ -175,6 +187,9 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
                 lockedFlake = flake->getLockedFlake()->flake.lockedRef.to_string();
             auto entries = nlohmann::json::array();
             for (auto & read : state->sourceReadRecorder->get()) {
+                if (!readSetFingerprints.empty() && read.fingerprint
+                    && !readSetFingerprints.contains(*read.fingerprint))
+                    continue;
                 entries.push_back({
                     {"access", sourceReadTypeName(read.type)},
                     {"outcome", sourceReadOutcomeName(read.outcome)},
@@ -187,6 +202,8 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
                 {"schema_id", "nix-eval-read-set"},
                 {"installable", installable->what()},
                 {"locked_flake", std::move(lockedFlake)},
+                {"pure_eval", evalSettings.pureEval.get()},
+                {"requested_fingerprints", readSetFingerprints},
                 {"entries", std::move(entries)},
             };
             writeFile(*writeReadSet, document.dump() + "\n");

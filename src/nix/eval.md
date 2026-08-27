@@ -52,6 +52,11 @@ R""(
   disables the flake evaluation cache so cached values cannot omit their
   original reads.
 
+  Repeat `--read-set-fingerprint` to retain only reads attributed to those
+  source fingerprints plus every unfingerprinted read. This bounds a consumer's
+  projection without hiding access to an ambient or otherwise unattributed
+  source.
+
 * Generate a directory with the specified contents:
 
   ```console

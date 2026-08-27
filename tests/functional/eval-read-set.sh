@@ -18,6 +18,7 @@ printf 'abort "must stay lazy"\n' > "$flake/unused.nix"
 
 first="$TEST_ROOT/read-set-first.json"
 second="$TEST_ROOT/read-set-second.json"
+filtered="$TEST_ROOT/read-set-filtered.json"
 
 [[ $(nix eval --json "$flake#selected" --write-read-set "$first") == 42 ]]
 jq -e '
@@ -32,6 +33,15 @@ jq -e '
 [[ $(nix eval --json "$flake#selected" --write-read-set "$second") == 42 ]]
 cmp "$first" "$second"
 
+fingerprint=$(jq -r '.entries[] | select(.source_path == "/used.nix") | .fingerprint' "$first")
+[[ $(nix eval --json "$flake#selected" --write-read-set "$filtered" \
+  --read-set-fingerprint "$fingerprint") == 43 ]]
+jq -e --arg fingerprint "$fingerprint" '
+  .requested_fingerprints == [$fingerprint]
+  and any(.entries[]; .source_path == "/used.nix" and .fingerprint == $fingerprint)
+  and all(.entries[]; .fingerprint == null or .fingerprint == $fingerprint)
+' "$filtered" >/dev/null
+
 ambient="$TEST_ROOT/ambient-source"
 printf 'ambient\n' > "$ambient"
 ambientReadSet="$TEST_ROOT/read-set-ambient.json"
@@ -40,3 +50,5 @@ jq -e 'any(.entries[]; .access == "file" and .fingerprint == null)' "$ambientRea
 
 expectStderr 1 nix eval --json "$flake#selected" --write-read-set "$first" \
   | grepQuiet "already exists"
+expectStderr 1 nix eval --json "$flake#selected" \
+  --read-set-fingerprint "$fingerprint" | grepQuiet "requires --write-read-set"

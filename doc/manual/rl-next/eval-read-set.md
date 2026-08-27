@@ -9,5 +9,10 @@ Entries bind the locked flake, source fingerprint, source-relative path,
 logical path, access kind, and outcome. Reads without a source fingerprint are
 reported explicitly so consumers can reject or handle impure inputs.
 
+Repeated `--read-set-fingerprint FINGERPRINT` arguments restrict the document
+to reads attributed to those sources plus every unfingerprinted read. The
+document records the requested fingerprints. Filtering cannot hide an ambient
+or otherwise unattributed source read.
+
 Read-set recording disables the flake evaluation cache for that command. This
 ensures a cached value cannot produce an incomplete read set.
