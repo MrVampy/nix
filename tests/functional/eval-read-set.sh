@@ -35,7 +35,7 @@ cmp "$first" "$second"
 
 fingerprint=$(jq -r 'first(.entries[] | select(.source_path == "/used.nix") | .fingerprint)' "$first")
 [[ $(nix eval --json "$flake#selected" --write-read-set "$filtered" \
-  --read-set-fingerprint "$fingerprint") == 43 ]]
+  --read-set-fingerprint "$fingerprint") == 42 ]]
 jq -e --arg fingerprint "$fingerprint" '
   .requested_fingerprints == [$fingerprint]
   and any(.entries[]; .source_path == "/used.nix" and .fingerprint == $fingerprint)
