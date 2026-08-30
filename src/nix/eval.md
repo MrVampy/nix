@@ -50,7 +50,9 @@ R""(
   path, access kind, and outcome. An entry without a fingerprint identifies
   an impure source that a consumer must handle explicitly. Read-set recording
   disables the flake evaluation cache so cached values cannot omit their
-  original reads.
+  original reads. Coercing a source path into a store input records a separate
+  recursive-path access that binds the complete path content. The document's
+  `recursive_path_dependencies` field declares that this operation is covered.
 
   Repeat `--read-set-fingerprint` to retain only reads attributed to those
   source fingerprints plus every unfingerprinted read. This bounds a consumer's

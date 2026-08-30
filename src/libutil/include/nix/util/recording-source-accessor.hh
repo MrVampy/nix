@@ -9,7 +9,10 @@
 
 namespace nix {
 
+struct SourcePath;
+
 enum class SourceReadType {
+    RecursivePath,
     Stat,
     File,
     Directory,
@@ -39,6 +42,7 @@ class SourceReadRecorder
 
 public:
     void record(SourceRead read);
+    void record(SourceReadType type, SourceReadOutcome outcome, const SourcePath & path);
     std::vector<SourceRead> get() const;
 };
 

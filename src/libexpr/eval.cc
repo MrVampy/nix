@@ -2567,22 +2567,32 @@ StorePath EvalState::copyPathToStore(NixStringContext & context, const SourcePat
     if (nix::isDerivation(path.path.abs()))
         error<EvalError>("file names are not allowed to end in '%1%'", drvExtension).debugThrow();
 
-    auto dstPathCached = getConcurrent(*srcToStore, path);
-
-    auto dstPath = dstPathCached ? *dstPathCached : [&]() {
-        auto dstPath = fetchToStore(
-            fetchSettings,
-            *store,
-            path.resolveSymlinks(SymlinkResolution::Ancestors),
-            settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy,
-            path.baseName(),
-            ContentAddressMethod::Raw::NixArchive,
-            nullptr,
-            repair);
-        allowPath(dstPath);
-        srcToStore->try_emplace(path, dstPath);
-        printMsg(lvlChatty, "copied source '%1%' -> '%2%'", path, store->printStorePath(dstPath));
-        return dstPath;
+    auto dstPath = [&]() {
+        try {
+            auto dstPathCached = getConcurrent(*srcToStore, path);
+            auto result = dstPathCached ? *dstPathCached : [&]() {
+                auto copied = fetchToStore(
+                    fetchSettings,
+                    *store,
+                    path.resolveSymlinks(SymlinkResolution::Ancestors),
+                    settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy,
+                    path.baseName(),
+                    ContentAddressMethod::Raw::NixArchive,
+                    nullptr,
+                    repair);
+                allowPath(copied);
+                srcToStore->try_emplace(path, copied);
+                printMsg(lvlChatty, "copied source '%1%' -> '%2%'", path, store->printStorePath(copied));
+                return copied;
+            }();
+            if (sourceReadRecorder)
+                sourceReadRecorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Present, path);
+            return result;
+        } catch (...) {
+            if (sourceReadRecorder)
+                sourceReadRecorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Failed, path);
+            throw;
+        }
     }();
 
     context.insert(NixStringContextElem::Opaque{.path = dstPath});

@@ -3,6 +3,7 @@
 #include "nix/util/memory-source-accessor.hh"
 #include "nix/util/processes.hh"
 #include "nix/util/recording-source-accessor.hh"
+#include "nix/util/source-path.hh"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -22,6 +23,7 @@ TEST(RecordingSourceAccessor, recordsCanonicalDeduplicatedOperations)
 
     auto recorder = std::make_shared<SourceReadRecorder>();
     auto accessor = makeRecordingSourceAccessor(source, recorder);
+    recorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Present, SourcePath(source));
     EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
     EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
     EXPECT_TRUE(accessor->readDirectory(CanonPath("directory")).empty());
@@ -31,6 +33,13 @@ TEST(RecordingSourceAccessor, recordsCanonicalDeduplicatedOperations)
     EXPECT_EQ(
         recorder->get(),
         (std::vector<SourceRead>{
+            {
+                .type = SourceReadType::RecursivePath,
+                .outcome = SourceReadOutcome::Present,
+                .logicalPath = CanonPath::root,
+                .sourcePath = CanonPath::root,
+                .fingerprint = "test:revision",
+            },
             {
                 .type = SourceReadType::Stat,
                 .outcome = SourceReadOutcome::Absent,

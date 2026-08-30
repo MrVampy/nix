@@ -18,6 +18,8 @@
 #include "nix/expr/primops.hh"
 #include "nix/fetchers/fetch-to-store.hh"
 #include "nix/util/sort.hh"
+#include "nix/util/recording-source-accessor.hh"
+#include "nix/util/source-path.hh"
 
 #include <boost/container/small_vector.hpp>
 #include <boost/unordered/concurrent_flat_map.hpp>
@@ -1726,7 +1728,15 @@ static void derivationStrictInternal(EvalState & state, std::string_view drvName
                 [&](const NixStringContextElem::Built & b) {
                     drv.inputDrvs.ensureSlot(*b.drvPath).value.insert(b.output);
                 },
-                [&](const NixStringContextElem::Opaque & o) { drv.inputSrcs.insert(o.path); },
+                [&](const NixStringContextElem::Opaque & o) {
+                    drv.inputSrcs.insert(o.path);
+                    if (state.sourceReadRecorder) {
+                        state.sourceReadRecorder->record(
+                            SourceReadType::RecursivePath,
+                            SourceReadOutcome::Present,
+                            SourcePath(state.rootFS, CanonPath(state.store->printStorePath(o.path))));
+                    }
+                },
             },
             c.raw);
     }

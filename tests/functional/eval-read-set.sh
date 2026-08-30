@@ -10,6 +10,12 @@ cat > "$flake/flake.nix" <<'EOF'
   outputs = { self }: {
     selected = import ./used.nix;
     ignored = import ./unused.nix;
+    sourceDerivation = derivation {
+      name = "read-set-source";
+      system = builtins.currentSystem;
+      builder = "builtin:read-set";
+      src = self;
+    };
   };
 }
 EOF
@@ -19,10 +25,12 @@ printf 'abort "must stay lazy"\n' > "$flake/unused.nix"
 first="$TEST_ROOT/read-set-first.json"
 second="$TEST_ROOT/read-set-second.json"
 filtered="$TEST_ROOT/read-set-filtered.json"
+recursive="$TEST_ROOT/read-set-recursive.json"
 
 [[ $(nix eval --json "$flake#selected" --write-read-set "$first") == 42 ]]
 jq -e '
   .schema_id == "nix-eval-read-set"
+  and .recursive_path_dependencies
   and (.installable | endswith("#selected"))
   and (.locked_flake | contains("narHash="))
   and any(.entries[]; .access == "file" and .outcome == "present" and .source_path == "/flake.nix" and .fingerprint != null)
@@ -32,6 +40,15 @@ jq -e '
 
 [[ $(nix eval --json "$flake#selected" --write-read-set "$second") == 42 ]]
 cmp "$first" "$second"
+
+nix eval --raw "$flake#sourceDerivation.drvPath" --write-read-set "$recursive" >/dev/null
+jq -e '
+  any(.entries[];
+    .access == "recursive-path"
+    and .outcome == "present"
+    and .source_path == "/"
+    and .fingerprint != null)
+' "$recursive" >/dev/null
 
 fingerprint=$(jq -r 'first(.entries[] | select(.source_path == "/used.nix") | .fingerprint)' "$first")
 [[ $(nix eval --json "$flake#selected" --write-read-set "$filtered" \
