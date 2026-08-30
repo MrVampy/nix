@@ -2642,15 +2642,26 @@ StorePath EvalState::copyPathToStore(NixStringContext & context, const SourcePat
     if (nix::isDerivation(path.path.abs()))
         error<EvalError>("file names are not allowed to end in '%1%'", drvExtension).debugThrow();
 
-    auto dstPath = fetchToStore(
-        fetchSettings,
-        *store,
-        path.resolveSymlinks(SymlinkResolution::Ancestors),
-        settings.isReadOnly() ? FetchMode::DryRun : FetchMode::Copy,
-        path.baseName(),
-        ContentAddressMethod::Raw::NixArchive,
-        nullptr,
-        repair);
+    auto dstPath = [&]() {
+        try {
+            auto result = fetchToStore(
+                fetchSettings,
+                *store,
+                path.resolveSymlinks(SymlinkResolution::Ancestors),
+                settings.isReadOnly() ? FetchMode::DryRun : FetchMode::Copy,
+                path.baseName(),
+                ContentAddressMethod::Raw::NixArchive,
+                nullptr,
+                repair);
+            if (sourceReadRecorder)
+                sourceReadRecorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Present, path);
+            return result;
+        } catch (...) {
+            if (sourceReadRecorder)
+                sourceReadRecorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Failed, path);
+            throw;
+        }
+    }();
     allowPath(dstPath);
 
     context.insert(NixStringContextElem::Opaque{.path = dstPath});

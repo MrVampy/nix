@@ -1,4 +1,5 @@
 #include "nix/util/recording-source-accessor.hh"
+#include "nix/util/source-path.hh"
 
 #include <tuple>
 
@@ -7,6 +8,24 @@ namespace nix {
 void SourceReadRecorder::record(SourceRead read)
 {
     reads.lock()->insert(std::move(read));
+}
+
+void SourceReadRecorder::record(SourceReadType type, SourceReadOutcome outcome, const SourcePath & path)
+{
+    auto sourcePath = path.path;
+    std::optional<std::string> fingerprint;
+    try {
+        std::tie(sourcePath, fingerprint) = path.accessor->getFingerprint(path.path);
+    } catch (...) {
+    }
+    record(
+        SourceRead{
+            .type = type,
+            .outcome = outcome,
+            .logicalPath = path.path,
+            .sourcePath = std::move(sourcePath),
+            .fingerprint = std::move(fingerprint),
+        });
 }
 
 std::vector<SourceRead> SourceReadRecorder::get() const
@@ -30,20 +49,7 @@ struct RecordingSourceAccessor : SourceAccessor
 
     void record(SourceReadType type, SourceReadOutcome outcome, const CanonPath & path)
     {
-        auto sourcePath = path;
-        std::optional<std::string> fingerprint;
-        try {
-            std::tie(sourcePath, fingerprint) = next->getFingerprint(path);
-        } catch (...) {
-        }
-        recorder->record(
-            SourceRead{
-                .type = type,
-                .outcome = outcome,
-                .logicalPath = path,
-                .sourcePath = std::move(sourcePath),
-                .fingerprint = std::move(fingerprint),
-            });
+        recorder->record(type, outcome, SourcePath(next, path));
     }
 
     void readFile(const CanonPath & path, Sink & sink, fun<void(uint64_t)> sizeCallback) override

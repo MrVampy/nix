@@ -18,6 +18,8 @@ namespace nix {
 static std::string_view sourceReadTypeName(SourceReadType type)
 {
     switch (type) {
+    case SourceReadType::RecursivePath:
+        return "recursive-path";
     case SourceReadType::Stat:
         return "stat";
     case SourceReadType::File:
@@ -206,6 +208,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
                 {"installable", installable->what()},
                 {"locked_flake", std::move(lockedFlake)},
                 {"pure_eval", state->settings.pureEval.get()},
+                {"recursive_path_dependencies", true},
                 {"requested_fingerprints", readSetFingerprints},
                 {"entries", std::move(entries)},
             };

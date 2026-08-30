@@ -9,7 +9,9 @@ Entries bind the locked flake, pure-evaluation mode, source fingerprint,
 source-relative path, logical path, access kind, and outcome. Unfingerprinted
 content reads are reported explicitly so consumers can reject or handle impure
 inputs. Directory reads retain the directory dependency, and absent `stat`
-results retain the negative dependency.
+results retain the negative dependency. Source paths consumed as derivation
+inputs produce recursive-path entries that bind complete path content. The
+document declares that coverage with `recursive_path_dependencies`.
 
 Repeated `--read-set-fingerprint FINGERPRINT` arguments restrict the document
 to reads attributed to those sources plus every unfingerprinted read. The

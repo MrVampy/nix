@@ -49,6 +49,9 @@ R""(
   installable and locked flake, pure-evaluation mode, source fingerprint,
   path relative to that source, logical path, access kind, and outcome.
   Directory reads and absent `stat` results remain explicit dependencies.
+  Source paths consumed as derivation inputs produce recursive-path entries
+  that bind complete path content. The `recursive_path_dependencies` field
+  declares that coverage.
   An unfingerprinted content read identifies an impure source that a consumer
   must handle explicitly. Read-set recording disables the flake evaluation
   cache so cached values cannot omit their original reads.
