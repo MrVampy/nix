@@ -53,6 +53,11 @@ R""(
   original reads. Coercing a source path into a store input records a separate
   recursive-path access that binds the complete path content. The document's
   `recursive_path_dependencies` field declares that this operation is covered.
+  Copying or filtering a fingerprinted source into another store path also
+  records a derived-path entry. Its logical path is the generated store path,
+  while its source path and fingerprint retain the originating source. This
+  lets consumers bind generated source subsets back to their exact input
+  without making the original source path part of a derivation identity.
 
   Repeat `--read-set-fingerprint` to retain only reads attributed to those
   source fingerprints plus every unfingerprinted read. This bounds a consumer's

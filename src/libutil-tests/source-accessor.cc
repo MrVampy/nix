@@ -24,6 +24,7 @@ TEST(RecordingSourceAccessor, recordsCanonicalDeduplicatedOperations)
     auto recorder = std::make_shared<SourceReadRecorder>();
     auto accessor = makeRecordingSourceAccessor(source, recorder);
     recorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Present, SourcePath(source));
+    recorder->recordDerivedPath(CanonPath("derived"), SourcePath(source));
     EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
     EXPECT_EQ(accessor->readFile(CanonPath("file")), "contents");
     EXPECT_TRUE(accessor->readDirectory(CanonPath("directory")).empty());
@@ -37,6 +38,13 @@ TEST(RecordingSourceAccessor, recordsCanonicalDeduplicatedOperations)
                 .type = SourceReadType::RecursivePath,
                 .outcome = SourceReadOutcome::Present,
                 .logicalPath = CanonPath::root,
+                .sourcePath = CanonPath::root,
+                .fingerprint = "test:revision",
+            },
+            {
+                .type = SourceReadType::DerivedPath,
+                .outcome = SourceReadOutcome::Present,
+                .logicalPath = CanonPath("derived"),
                 .sourcePath = CanonPath::root,
                 .fingerprint = "test:revision",
             },

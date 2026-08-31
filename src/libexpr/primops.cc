@@ -2870,9 +2870,16 @@ static void addPath(
                 state.error<EvalError>("store path mismatch in (possibly filtered) path added from '%s'", path)
                     .atPos(pos)
                     .debugThrow();
+            if (state.sourceReadRecorder)
+                state.sourceReadRecorder->recordDerivedPath(
+                    CanonPath(state.store->printStorePath(dstPath)), path);
             state.allowAndSetStorePathString(dstPath, v);
-        } else
+        } else {
+            if (state.sourceReadRecorder)
+                state.sourceReadRecorder->recordDerivedPath(
+                    CanonPath(state.store->printStorePath(*expectedStorePath)), path);
             state.allowAndSetStorePathString(*expectedStorePath, v);
+        }
     } catch (Error & e) {
         e.addTrace(state.positions[pos], "while adding path '%s'", path);
         throw;

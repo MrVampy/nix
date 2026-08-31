@@ -12,9 +12,20 @@ cat > "$flake/flake.nix" <<'EOF'
     ignored = import ./unused.nix;
     sourceDerivation = derivation {
       name = "read-set-source";
-      system = builtins.currentSystem;
+      system = "x86_64-linux";
       builder = "builtin:read-set";
       src = self;
+    };
+    filteredSourceDerivation = derivation {
+      name = "filtered-read-set-source-derivation";
+      system = "x86_64-linux";
+      builder = "builtin:read-set";
+      src = builtins.path {
+        path = ./.;
+        name = "filtered-read-set-source";
+        filter = path: type:
+          type == "directory" || builtins.baseNameOf path == "used.nix";
+      };
     };
   };
 }
@@ -26,6 +37,7 @@ first="$TEST_ROOT/read-set-first.json"
 second="$TEST_ROOT/read-set-second.json"
 filtered="$TEST_ROOT/read-set-filtered.json"
 recursive="$TEST_ROOT/read-set-recursive.json"
+derived="$TEST_ROOT/read-set-derived.json"
 
 [[ $(nix eval --json "$flake#selected" --write-read-set "$first") == 42 ]]
 jq -e '
@@ -49,6 +61,20 @@ jq -e '
     and .source_path == "/"
     and .fingerprint != null)
 ' "$recursive" >/dev/null
+
+nix eval --raw "$flake#filteredSourceDerivation.drvPath" --write-read-set "$derived" >/dev/null
+if ! jq -e --arg store "$NIX_STORE_DIR/" '
+  any(.entries[];
+    .access == "derived-path"
+    and .outcome == "present"
+    and .source_path == "/"
+    and (.logical_path | startswith($store))
+    and (.logical_path | endswith("-filtered-read-set-source"))
+    and .fingerprint != null)
+' "$derived" >/dev/null; then
+  jq . "$derived"
+  false
+fi
 
 fingerprint=$(jq -r 'first(.entries[] | select(.source_path == "/used.nix") | .fingerprint)' "$first")
 [[ $(nix eval --json "$flake#selected" --write-read-set "$filtered" \

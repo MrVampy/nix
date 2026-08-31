@@ -28,6 +28,24 @@ void SourceReadRecorder::record(SourceReadType type, SourceReadOutcome outcome, 
         });
 }
 
+void SourceReadRecorder::recordDerivedPath(const CanonPath & logicalPath, const SourcePath & source)
+{
+    auto sourcePath = source.path;
+    std::optional<std::string> fingerprint;
+    try {
+        std::tie(sourcePath, fingerprint) = source.accessor->getFingerprint(source.path);
+    } catch (...) {
+    }
+    record(
+        SourceRead{
+            .type = SourceReadType::DerivedPath,
+            .outcome = SourceReadOutcome::Present,
+            .logicalPath = logicalPath,
+            .sourcePath = std::move(sourcePath),
+            .fingerprint = std::move(fingerprint),
+        });
+}
+
 std::vector<SourceRead> SourceReadRecorder::get() const
 {
     auto current = reads.readLock();

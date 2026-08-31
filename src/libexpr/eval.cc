@@ -2587,6 +2587,8 @@ StorePath EvalState::copyPathToStore(NixStringContext & context, const SourcePat
             }();
             if (sourceReadRecorder)
                 sourceReadRecorder->record(SourceReadType::RecursivePath, SourceReadOutcome::Present, path);
+            if (sourceReadRecorder)
+                sourceReadRecorder->recordDerivedPath(CanonPath(store->printStorePath(result)), path);
             return result;
         } catch (...) {
             if (sourceReadRecorder)

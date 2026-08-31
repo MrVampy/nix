@@ -19,6 +19,8 @@ static std::string_view sourceReadTypeName(SourceReadType type)
     switch (type) {
     case SourceReadType::RecursivePath:
         return "recursive-path";
+    case SourceReadType::DerivedPath:
+        return "derived-path";
     case SourceReadType::Stat:
         return "stat";
     case SourceReadType::File:

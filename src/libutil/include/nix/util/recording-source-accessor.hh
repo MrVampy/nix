@@ -13,6 +13,7 @@ struct SourcePath;
 
 enum class SourceReadType {
     RecursivePath,
+    DerivedPath,
     Stat,
     File,
     Directory,
@@ -43,6 +44,7 @@ class SourceReadRecorder
 public:
     void record(SourceRead read);
     void record(SourceReadType type, SourceReadOutcome outcome, const SourcePath & path);
+    void recordDerivedPath(const CanonPath & logicalPath, const SourcePath & source);
     std::vector<SourceRead> get() const;
 };
 

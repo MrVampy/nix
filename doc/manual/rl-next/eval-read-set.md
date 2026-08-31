@@ -12,6 +12,11 @@ Source paths coerced into store inputs produce a distinct recursive-path entry,
 including on a source-to-store cache hit, so the document retains the complete
 content dependency rather than only the shallow reads used to evaluate it. The
 document declares this coverage with `recursive_path_dependencies`.
+Copying or filtering a fingerprinted source into another store path records a
+derived-path entry whose logical path is the generated store path and whose
+source path and fingerprint retain the origin. Consumers can therefore bind a
+generated source subset back to its exact input without putting the original
+source path into derivation metadata.
 
 Repeated `--read-set-fingerprint FINGERPRINT` arguments restrict the document
 to reads attributed to those sources plus every unfingerprinted read. The
