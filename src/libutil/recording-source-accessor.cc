@@ -1,6 +1,7 @@
 #include "nix/util/recording-source-accessor.hh"
 #include "nix/util/source-path.hh"
 
+#include <map>
 #include <tuple>
 
 namespace nix {
@@ -49,7 +50,29 @@ void SourceReadRecorder::recordDerivedPath(const CanonPath & logicalPath, const 
 std::vector<SourceRead> SourceReadRecorder::get() const
 {
     auto current = reads.readLock();
-    return {current->begin(), current->end()};
+    std::map<std::string, std::set<CanonPath>> recursive;
+    for (const auto & read : *current)
+        if (read.type == SourceReadType::RecursivePath && read.outcome == SourceReadOutcome::Present
+            && read.fingerprint)
+            recursive[*read.fingerprint].insert(read.sourcePath);
+
+    std::vector<SourceRead> canonical;
+    for (const auto & read : *current) {
+        bool covered = false;
+        if (read.type != SourceReadType::RecursivePath && read.type != SourceReadType::DerivedPath
+            && read.outcome == SourceReadOutcome::Present && read.fingerprint) {
+            auto roots = recursive.find(*read.fingerprint);
+            if (roots != recursive.end())
+                for (auto path = std::optional<CanonPath>(read.sourcePath); path; path = path->parent())
+                    if (roots->second.contains(*path)) {
+                        covered = true;
+                        break;
+                    }
+        }
+        if (!covered)
+            canonical.push_back(read);
+    }
+    return canonical;
 }
 
 struct RecordingSourceAccessor : SourceAccessor
